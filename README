@@ -1,0 +1,76 @@
+This is Snowflake, a highly experimental Linux distribution based on the musl C
+library, with a per-process view of the /usr filesystem, such that users may
+choose to have different perceptions of which packages are available on the
+system. Snowflake runs on i[3456]86, x86_64 and ARM.
+
+Within Snowflake, users may choose to change their view of which packages and
+versions are installed. For instance, if you do not expose gcc in the default
+set of packages, a user may compile packages like so:
+
+$ gcc
+sh: gcc: not found
+$ with gcc
+$ which gcc
+/usr/bin/gcc
+$ gcc test.c
+$ ./a.out
+Hello, world!
+
+To build snowflake, make a config.sh (or use the existing one), and use the
+build scripts in core/, in this order:
+
+* ./buildcc.sh: Builds a cross-compiler targeting linux-musl. Due to a
+  confluence of bugs, including possibly a bug in my GCC patch (which I'm
+  investigating) as well as a pseudo-bug in GCC (GCC 4.7.0 can only be
+  cross-built with GCC >=4.7.0), you currently need a cross-compiler for
+  linux-musl. It's generally a good idea since it avoids pollution anyway. If
+  at some point I figure out how to get GCC 4.7.0 to reliably compile with the
+  musl-gcc wrapper instead of a cross-compiler, this step will not be strictly
+  necessary, but will still be recommended. As a point of comparison, note that
+  most other musl distributions require that you compile GCC 3.6 for musl
+  before compiling GCC 4, so the number of GCC compiles is the same.
+
+* ./build-gcc-deps.sh: Builds prerequisites to build GCC for the guest. This
+  needs to be done after buildcc and before buildroot.
+
+* ./buildroot.sh: Builds a Snowflake root filesystem.
+
+* ./bootstraproot.sh: Builds the last few packages from within Snowflake. Note
+  that this will only work if your host kernel supports the necessary modules,
+  otherwise you will need to run Snowflake in a VM and bootstrap with
+  /src/bootstrap.sh.
+
+* ./enter-chroot.sh: chroots into a Snowflake root filesystem.
+
+* ./mk-hd-image.sh: Builds a Snowflake HD image from a root filesystem.
+
+It is possible to build out-of-source. To do so, set the environment variable
+SNOWFLAKE_BASE to the absolute path of core/, then run the scripts as usual.
+
+Snowflake supports the NetBSD pkgsrc as a source of packages. The integration
+is imperfect but working. To include pkgsrc, set WITH_PKGSRC=yes in your
+config.sh. To use it, just `with pkgsrc` then build in /var/pkgsrc.
+Installation will automatically go into separated packages in /pkg.
+
+The default root password is "snowflake".
+
+
+Snowflake can run on ARM, though in a fairly limited fashion and without some
+vital tools. Due to bugs at various layers, support is very preliminary. A
+native compile on an ARM system should work just like a native compile on any
+other system. To cross-compile Snowflake for ARM:
+
+* Your config.sh must specify ARCH=arm and TRIPLE=arm-linux-musleabi . Note
+  "eabi", it's important.
+
+* Up to buildroot is as normal. After buildroot asks you to sudo, it will have
+  some errors. These are normal.
+
+* Use mk-hd-image.sh to create an image, even though it hasn't been finalized
+  or bootstrapped.
+
+* The image is usable in qemu like so:
+  qemu-system-arm -M vexpress-a9 -kernel vmlinuz \
+  -append "console=tty0 root=b302 rw" -sd snowflake.img
+
+* Run /src/bootstrap.sh to finish bootstrapping.

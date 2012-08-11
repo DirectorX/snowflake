@@ -1,0 +1,5 @@
+# Note that busybox uses a non-standard inittab.
+
+::sysinit:/etc/rc.boot
+::respawn:/usr/bin/runsvdir -P /etc/service
+::shutdown:/etc/rc.shutdown

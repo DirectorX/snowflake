@@ -1,0 +1,27 @@
+#!/bin/sh
+# Quick and dirty linker for snowflake, for use before the proper tools are
+# available, requires that busybox be statically linked
+BUSYBOX_VERSION=1.20.2
+PKGRESOLVE_VERSION=0.1
+
+PATH="/pkg/busybox/$BUSYBOX_VERSION/usr/bin"
+export PATH
+
+if [ ! -e /pkg/busybox/$BUSYBOX_VERSION ]
+then
+    echo 'This doesn'\''t seem to be a functioning Snowflake setup, bailing.'
+    exit 1
+fi
+rm -rf /usr/*
+
+for pkg in core/1.0 `/pkg/pkgresolve/$PKGRESOLVE_VERSION/usr/bin/pkgresolve -s "$@"`
+do
+    echo 'Linking '"$pkg"
+    cd /pkg/$pkg/usr || continue
+    find . -type d -exec mkdir -m 0755 -p '/usr/{}' ';'
+    find . '(' -type f -o -type l ')' -a ! -name '.usr_ok' -exec ln -s /pkg/"$pkg"/usr/'{}' '/usr/{}' ';'
+done
+
+# Fixup the sbin link which will be broken by core
+rm -f /usr/sbin
+ln -s bin /usr/sbin
